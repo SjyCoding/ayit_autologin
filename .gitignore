@@ -1,2 +1,6 @@
 .idea
 venv
+
+# 忽略文件
+test*
+执行powershell命令.py

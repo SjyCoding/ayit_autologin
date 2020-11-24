@@ -6,9 +6,16 @@
 
 """
 import os
+from glob import glob
 import time
-
+import subprocess as sp
 import requests
+
+# 校园网ip
+EduIP = '172.168.254.6'
+
+# 连接方式  以太网/WALN
+link_fs = "以太网"
 
 # 运营商
 移动 = 'yidong'
@@ -21,48 +28,28 @@ yunyingshang = 移动
 username = 18031210211
 password = 888888
 
-powershell_cmd = "curl -URi 'http://172.168.254.6:801/eportal/?c=ACSetting&a=Login&protocol=http:&hostname=172.168.254.6&iTermType=2&wlanuserip=172.19.192.251&wlanacip=172.168.254.100&mac=000000000000&ip=172.19.192.251&enAdvert=0&loginMethod=1' -Body 'DDDDD=%2C0%2C18031210211%40yidong&upass=888888&R1=0&R2=0&R6=0&para=00&0MKKey=123456&buttonClicked=&redirect_url=&err_flag=&username=&password=&user=&cmd=&Login=' -Method Post"
+local_ip = ""
 
-RequestURL = 'http://172.168.254.6:801/eportal/?c=ACSetting&a=Login&protocol=http:&hostname=172.168.254.6&iTermType=1&wlanuserip=172.19.219.87&wlanacip=172.168.254.100&mac=000000000000&ip=172.19.65.99&enAdvert=0&loginMethod=1'
-
-request_headers = {
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-    'Accept-Encoding': 'gzip, deflate',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6',
-    'Cache-Control': 'max-age=0',
-    'Connection': 'keep-alive',
-    'Content-Length': '160',
-    'Content-Type': 'application/x-www-form-urlencoded',
-    'Cookie': 'program=aygxy; vlan=0; PHPSESSID=4kmcof308gdhd272bbn5ja20t6; md5_login=18031210211%7C888888; ip=172.19.192.251; areaID=wlanuserip%3D172.19.219.87; is_login=1',
-    'DNT': '1',
-    'Host': '172.168.254.6:801',
-    'Origin': 'http://172.168.254.6',
-    'Referer': 'http://172.168.254.6/',
-    'Upgrade-Insecure-Requests': '1',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.66 Safari/537.36'
-}
-form_data = {
-
-    'DDDDD': ',0,18031210211@yidong',
-    'upass': '888888',
-    'R1': '0',
-    'R2': '0',
-    'R6': '0',
-    'para': '00',
-    '0MKKey': '123456',
-    'buttonClicked': '',
-    'redirect_url': '',
-    'err_flag': '',
-    'username': '',
-    'user': '',
-    'password': '',
-    'cmd': '',
-    'Login': '',
-}
-BaiduIP = '182.61.200.7'
-EduIP = '172.168.254.6'
+powershell_cmd = "curl " \
+                 "-URi 'http://172.168.254.6:801/eportal/?c=ACSetting&a=Login&protocol=http:&hostname=172.168.254.6" \
+                 "&iTermType=2&wlanuserip=" + local_ip + "&wlanacip=172.168.254.100&mac=000000000000&ip=" + local_ip + \
+                 "&enAdvert=0&loginMethod=1' " \
+                 "-Body 'DDDDD=%2C0%2C18031210211%40yidong&upass=888888&R1=0&R2=0&R6=0&para=00&0MKKey=123456" \
+                 "&buttonClicked=&redirect_url=&err_flag=&username=&password=&user=&cmd=&Login=' " \
+                 "-Method Post"
 
 url = 'http://172.168.254.6/'
+
+
+def run(self, cmd, timeout=15):
+    b_cmd = cmd.encode(encoding=self.coding)
+    try:
+        b_outs, errs = self.popen.communicate(b_cmd, timeout=timeout)
+    except sp.TimeoutExpired:
+        self.popen.kill()
+        b_outs, errs = self.popen.communicate()
+    outs = b_outs.decode(encoding=self.coding)
+    return outs, errs
 
 
 # 查看连接的是否是校园网
@@ -101,18 +88,88 @@ def check_ping(ip, count=1, timeout=500):
 #                 print('Not connected Internet')
 #         break
 
-print("ping Baidu - " + check_ping(BaiduIP))
-print("ping edu - " + check_ping(EduIP))
+# print("ping Baidu - " + check_ping("baidu.com"))
+# print("ping edu - " + check_ping(EduIP))
+#
+# if check_ping(EduIP) == 'ok':  # 能ping通校园网
+#     while True:
+#         print("login...")
+#         if check_ping("baidu.com") == 'failed':  # ping不通百度 登陆校园网
+#             # requests.post(url, data=data)
+#             time.sleep(1)  # 休眠
+#         else:
+#             print("已连上网络")
+#             break
+#         time.sleep(1)  # 休眠
+# else:
+#     print("未连接校园网...")
 
-if check_ping(EduIP) == 'ok':  # 能ping通校园网
+class PowerShell:
+    # from scapy
+    def __init__(self, coding, ):
+        cmd = [self._where('PowerShell.exe'),
+               "-NoLogo", "-NonInteractive",  # Do not print headers
+               "-Command", "-"]  # Listen commands from stdin
+        startupinfo = sp.STARTUPINFO()
+        startupinfo.dwFlags |= sp.STARTF_USESHOWWINDOW
+        self.popen = sp.Popen(cmd, stdout=sp.PIPE, stdin=sp.PIPE, stderr=sp.STDOUT, startupinfo=startupinfo)
+        self.coding = coding
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, a, b, c):
+        self.popen.kill()
+
+    def run(self, cmd, timeout=15):
+        b_cmd = cmd.encode(encoding=self.coding)
+        try:
+            b_outs, errs = self.popen.communicate(b_cmd, timeout=timeout)
+        except sp.TimeoutExpired:
+            self.popen.kill()
+            b_outs, errs = self.popen.communicate()
+        outs = b_outs.decode(encoding=self.coding)
+        return outs, errs
+
+    @staticmethod
+    def _where(filename, dirs=None, env="PATH"):
+        """Find file in current dir, in deep_lookup cache or in system path"""
+        if dirs is None:
+            dirs = []
+        if not isinstance(dirs, list):
+            dirs = [dirs]
+        if glob(filename):
+            return filename
+        paths = [os.curdir] + os.environ[env].split(os.path.pathsep) + dirs
+        try:
+            return next(os.path.normpath(match)
+                        for path in paths
+                        for match in glob(os.path.join(path, filename))
+                        if match)
+        except (StopIteration, RuntimeError):
+            raise IOError("File not found: %s" % filename)
+
+
+def main():
     while True:
-        print("login...")
-        if check_ping(BaiduIP) == 'failed':  # ping不通百度 登陆校园网
-            requests.post(url, data=data)
-            time.sleep(1)  # 休眠
-        if check_ping(BaiduIP) == 'ok':
-            print("已连上网络")
+        with PowerShell('GBK') as ps:
+            # 在连接校园网的情况下, 获取本机ip
+            out, err = ps.run('ipconfig')
+            if link_fs == "以太网":
+                local_ip = out.split(link_fs)[3].split(':')[9].split('\r\n')[0].strip()
+
+            cmd = "curl " \
+                  "-URi 'http://172.168.254.6:801/eportal/?c=ACSetting&a=Login&protocol=http:&hostname=172.168.254.6" \
+                  "&iTermType=2&wlanuserip=" + local_ip + "&wlanacip=172.168.254.100&mac=000000000000&ip=" + local_ip + \
+                  "&enAdvert=0&loginMethod=1' " \
+                  "-Body 'DDDDD=%2C0%2C18031210211%40yidong&upass=888888&R1=0&R2=0&R6=0&para=00&0MKKey=123456" \
+                  "&buttonClicked=&redirect_url=&err_flag=&username=&password=&user=&cmd=&Login=' " \
+                  "-Method Post"
+            outs, errs = ps.run(cmd)
+        if is_connect_web():
+            print("联网成功")
             break
-        time.sleep(1)  # 休眠
-else:
-    print("未连接校园网...")
+
+
+if __name__ == '__main__':
+    main()
